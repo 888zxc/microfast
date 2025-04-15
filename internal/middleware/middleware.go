@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"github.com/valyala/fasthttp"
-	"github.com/microfast/internal/logger"
-	"github.com/microfast/internal/limiter"
+	"github.com/888zxc/microfast/internal/logger"
+	"github.com/888zxc/microfast/internal/limiter"
+	"go.uber.org/zap"
 )
 
 type Middleware func(next fasthttp.RequestHandler) fasthttp.RequestHandler

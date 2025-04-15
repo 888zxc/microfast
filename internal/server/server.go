@@ -10,11 +10,13 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/reuseport"
+	"go.uber.org/zap"
 
-	"github.com/microfast/internal/handler"
-	"github.com/microfast/internal/middleware"
-	"github.com/microfast/internal/limiter"
-	"github.com/microfast/internal/logger"
+
+	"github.com/888zxc/microfast/internal/handler"
+	"github.com/888zxc/microfast/internal/middleware"
+	"github.com/888zxc/microfast/internal/limiter"
+	"github.com/888zxc/microfast/internal/logger"
 )
 
 type Server struct {
@@ -62,7 +64,7 @@ func (s *Server) Start() error {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	logger.L().Info("Shutting down server gracefully")
 	return s.server.Shutdown()

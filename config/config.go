@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"fmt"
 )
 
 type Config struct {

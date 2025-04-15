@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/microfast/config"
-	"github.com/microfast/internal/server"
-	"github.com/microfast/internal/limiter"
-	"github.com/microfast/internal/logger"
+	"github.com/888zxc/microfast/config"
+	"github.com/888zxc/microfast/internal/server"
+	"github.com/888zxc/microfast/internal/limiter"
+	"github.com/888zxc/microfast/internal/logger"
 )
 
 func main() {
