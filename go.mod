@@ -1,3 +1,3 @@
-module github.com/888zxc/GO-Server
+module microfast
 
 go 1.23.2

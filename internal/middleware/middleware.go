@@ -1,72 +1,67 @@
 package middleware
 
 import (
-	"log"
-	"net"
-	"net/http"
-	"runtime/debug"
-	"time"
-
-	"golang.org/x/time/rate"
+	"github.com/valyala/fasthttp"
+	"github.com/microfast/internal/logger"
+	"github.com/microfast/internal/limiter"
 )
 
-// Logger 中间件记录请求日志
-func Logger(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf(
-			"%s - %s %s %s - %v",
-			r.RemoteAddr,
-			r.Method,
-			r.URL.Path,
-			r.Proto,
-			time.Since(start),
-		)
-	})
-}
+type Middleware func(next fasthttp.RequestHandler) fasthttp.RequestHandler
 
-// Recovery 中间件处理panic
-func Recovery(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("panic: %v\n%s", err, debug.Stack())
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+// Panic恢复 + 日志 + 安全头 + 限流
+func Chain(limiter *limiter.Limiter, handlers ...Middleware) Middleware {
+	return func(final fasthttp.RequestHandler) fasthttp.RequestHandler {
+		// 包裹中间件
+		for i := len(handlers) - 1; i >= 0; i-- {
+			final = handlers[i](final)
+		}
+		return func(ctx *fasthttp.RequestCtx) {
+			// 限流
+			if !limiter.Allow() {
+				ctx.SetStatusCode(fasthttp.StatusTooManyRequests)
+				ctx.SetBodyString("Too Many Requests")
+				return
 			}
-		}()
-		next.ServeHTTP(w, r)
-	})
+			final(ctx)
+		}
+	}
 }
 
-// Cors 中间件添加CORS头
-func Cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
+func Logging() Middleware {
+	return func(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			logger.L().Info("Request",
+				zap.String("method", string(ctx.Method())),
+				zap.String("path", string(ctx.Path())),
+				zap.String("remote_addr", ctx.RemoteAddr().String()),
+			)
+			next(ctx)
 		}
-		
-		next.ServeHTTP(w, r)
-	})
+	}
 }
 
-// 并发控制
-var limiter = rate.NewLimiter(100, 200) // 100 req/s, 突发200个请求
-
-// RateLimit 实现限流中间件
-func RateLimit(next http.Handler, rps int) http.Handler {
-	limiter = rate.NewLimiter(rate.Limit(rps), rps*2)
-	
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !limiter.Allow() {
-			http.Error(w, "请求过多，请稍后再试", http.StatusTooManyRequests)
-			return
+func Recovery() Middleware {
+	return func(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.L().Error("panic", zap.Any("error", r))
+					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+					ctx.SetBodyString("Internal Server Error")
+				}
+			}()
+			next(ctx)
 		}
-		next.ServeHTTP(w, r)
-	})
+	}
+}
+
+func SecureHeaders() Middleware {
+	return func(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			ctx.Response.Header.Set("X-Content-Type-Options", "nosniff")
+			ctx.Response.Header.Set("X-Frame-Options", "DENY")
+			ctx.Response.Header.Set("X-XSS-Protection", "1; mode=block")
+			next(ctx)
+		}
+	}
 }
