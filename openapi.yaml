@@ -1,0 +1,108 @@
+openapi: 3.0.3
+info:
+  title: microfast 高性能GO服务器 API
+  description: |
+    microfast 是为现代微服务场景设计的超高性能、高并发 Golang HTTP 服务器。  
+    本文档描述了 microfast 现有接口和返回格式。
+  version: "1.0.0"
+  contact:
+    name: microfast maintainer
+    url: https://github.com/888zxc/microfast
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Health
+    description: 健康/探针接口
+  - name: Core
+    description: 核心与信息接口
+  - name: Observability
+    description: 监控指标接口
+
+paths:
+  /:
+    get:
+      tags: 
+        - Core
+      summary: 首页欢迎信息
+      description: 返回 microfast 服务器欢迎语。
+      responses:
+        200:
+          description: 欢迎内容
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Welcome to microfast!
+
+  /healthz:
+    get:
+      tags: 
+        - Health
+      summary: 健康探测
+      description: 检查服务器健康状况。
+      responses:
+        200:
+          description: 服务器健康，返回 OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /metrics:
+    get:
+      tags: 
+        - Observability
+      summary: Prometheus 监控指标
+      description: 以 Prometheus 格式返回服务器内部监控指标数据。
+      responses:
+        200:
+          description: 当前 Prometheus 指标
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP http_requests_total Total number of HTTP requests
+                  # TYPE http_requests_total counter
+                  http_requests_total{path="/",method="GET"} 100
+        404:
+          description: 未实现或路径错误
+
+  /api/echo:
+    get:
+      tags: 
+        - Core
+      summary: Echo 示例API (如你将要扩展)
+      description: 回显 query 信息示例
+      parameters:
+        - name: msg
+          in: query
+          description: 需要回显的字符串
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 成功回显
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: pong!
+                  echo:
+                    type: string
+                    example: hello
+        400:
+          description: 参数非法
+
+components:
+  schemas: {}
